@@ -1,0 +1,15 @@
+# Compiled binaries
+mycp
+
+# Object files
+*.o
+
+# Executables
+*.out
+*.exe
+
+# Debug symbols
+*.dSYM/
+
+# Build directories
+build/
