@@ -1,15 +1,12 @@
-# Compiled binaries
+# Compiled binary
 mycp
 
 # Object files
 *.o
 
-# Executables
-*.out
-*.exe
+# VS Code settings
+.vscode/
 
-# Debug symbols
-*.dSYM/
-
-# Build directories
-build/
+# Temporary files
+*.swp
+*~
