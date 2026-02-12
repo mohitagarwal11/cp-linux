@@ -117,8 +117,9 @@ int main(int argc, char *argv[])
       total_written_yet += bytes_written;
     }
   }
+  close(src_fd);
+  close(dest_fd);
 
   printf("File content copied.\n");
-
   return 0;
 }
