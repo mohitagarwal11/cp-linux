@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <fcntl.h>  //for flags O_RDONLY, O_RWONLY etc
 #include <unistd.h> //for ssize_t and open write etc
+#include <sys/stat.h>
+#include <sys/types.h>
 
 int main(int argc, char *argv[])
 {
@@ -10,13 +12,13 @@ int main(int argc, char *argv[])
   if (argc < 3)
   {
     printf("Error 01: Invalid Number of arguements!\n");
-    printf("Please enter the source and final destinations\n");
+    printf("Usage: %s <source> <destination>\n", argv[0]);
     return 1;
   }
   else if (argc > 3)
   {
     printf("Error 01: Invalid Number of arguements!\n");
-    printf("Please enter only a source and a final destination!\n");
+    printf("Usage: %s <source> <destination>\n", argv[0]);
     return 1;
   }
   // else
@@ -48,7 +50,7 @@ int main(int argc, char *argv[])
   int src_fd = open(argv[1], O_RDONLY);
   if (src_fd < 0)
   {
-    printf("Error 02: Source file not found.\n");
+    perror("open");
     return 1;
   }
   // printf("Source file found.\n")
@@ -73,7 +75,7 @@ int main(int argc, char *argv[])
   // int dest_fd = open(argv[2], O_RDONLY);
   if (dest_fd < 0)
   {
-    printf("Error 02: Destination not found.\n");
+    perror("open");
     return 1;
   }
   // printf("Destination file found.\n")
@@ -93,7 +95,6 @@ int main(int argc, char *argv[])
   // helps reduce syscalls
 
   char buffer[4096];
-
   // ssize_t is Signed Size Type so it allows both pos and neg numbers
   // ned -1 for eof error
   // why not use int then?
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
 
   ssize_t bytes_read;
 
-  while ((bytes_read = read(src_fd, buffer, 4096)) > 0)
+  while ((bytes_read = read(src_fd, buffer, sizeof(buffer))) > 0)
   {
     ssize_t total_written_yet = 0;
     // now we are writing after the point it is already written
@@ -113,10 +114,47 @@ int main(int argc, char *argv[])
                                     total_written_yet + buffer,
                                     bytes_read - total_written_yet);
 
+      if (bytes_written < 0)
+      {
+        perror("write");
+        close(src_fd);
+        close(dest_fd);
+        return 1;
+      }
+
       // update total written
       total_written_yet += bytes_written;
     }
   }
+  if (bytes_read < 0)
+  {
+    perror("read");
+    close(src_fd);
+    close(dest_fd);
+    return 1;
+  }
+
+  // object to get src file info
+  struct stat st;
+  
+  // to get the src file info
+  // it returns all the file info but i need the ode only
+  if (stat(argv[1], &st) < 0)
+  {
+    perror("stat");
+    close(src_fd);
+    return 1;
+  }
+  
+  // to apply to same mode as src to dest file
+  if (fchmod(dest_fd, st.st_mode & 0777) < 0)
+  {
+    perror("fchmod");
+    close(src_fd);
+    close(dest_fd);
+    return 1;
+  }
+
   close(src_fd);
   close(dest_fd);
 
