@@ -3,39 +3,53 @@
 #include <unistd.h> //for ssize_t and open write etc
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char *argv[])
 {
-  // printf("Hello lets learn something new today!\n");
-  // printf("We are building a system command 'cp' today!!\n");
+  // Allowing user to use flags in command line arguements like:
+  // "-a" to append to the destiantion file and not overwrite
 
-  if (argc < 3)
+  // to know if append flag is raised or not
+  int append = 0;
+  // to store src argc
+  char *src;
+  // to store dest argc
+  char *dest;
+
+  if (argc == 4 && strcmp(argv[1], "-a") == 0)
   {
-    printf("Error 01: Invalid Number of arguements!\n");
-    printf("Usage: %s <source> <destination>\n", argv[0]);
+    append = 1;
+    src = argv[2];
+    dest = argv[3];
+  }
+  else if (argc == 3)
+  {
+    src = argv[1];
+    dest = argv[2];
+  }
+  else
+  {
+    printf("\nInvalid number of arguements!\n");
+    printf("\nUsage: %s <source> <destination>\n", argv[0]);
+    printf("\nFLAGS: \n----- [-a] -- to append to destination file\n");
     return 1;
   }
-  else if (argc > 3)
+
+  // to append we can use the O_APPEND flag inplace of the O_TRUNC for dest_fd
+
+  // to store the flags to be used for dest
+  int dest_flags = O_WRONLY | O_CREAT;
+
+  if (append)
   {
-    printf("Error 01: Invalid Number of arguements!\n");
-    printf("Usage: %s <source> <destination>\n", argv[0]);
-    return 1;
+    dest_flags |= O_APPEND;
   }
-  // else
-  // {
-  //   printf("%s\n", argv[1]);
-  //   printf("%s\n", argv[2]);
-  // }
-
-  // I hv the two arguements
-  // next:
-  // now i need to copy byte by byte from first to second source
-  // ik i need a char buffer for it
-  // size of the buffer i am not sure
-  // i also need to check if the sources exists or not even
-  // lets first go and check validity of the files
-
-  // lets check if they even exist or not
+  else
+  {
+    dest_flags |= O_TRUNC;
+  }
 
   // src_fd and dest_fd are file descriptors that are basically
   // index we get as return from open for kernal objects for our opened files
@@ -47,7 +61,7 @@ int main(int argc, char *argv[])
   // these indexes point to the object that has the metadata of the said file
   // very interesting!
 
-  int src_fd = open(argv[1], O_RDONLY);
+  int src_fd = open(src, O_RDONLY);
   if (src_fd < 0)
   {
     perror("open");
@@ -65,29 +79,16 @@ int main(int argc, char *argv[])
   // 4 -> read
   // 2 -> write
   // 1 -> execute
-  // so i wanted owner to read and write therefore 6 == 4+2
-  // group only read so 4
-  // same for others
-  // i want to transfer the permissions from src to dest file
-  // but i need to learn stat, mode and chmod so maybe next time
 
-  int dest_fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
-  // int dest_fd = open(argv[2], O_RDONLY);
+  int dest_fd = open(dest, dest_flags, 0644);
   if (dest_fd < 0)
   {
     perror("open");
     return 1;
   }
-  // printf("Destination file found.\n")
-
-  // printf("src_fd = %d\n", src_fd);
-  // printf("dest_fd = %d\n", dest_fd);
 
   // validation done for src and dest when both are files
   // and if file doesnt exist now we create one there itself usign the flag and code
-  // i want to make it work for final destination as folders as well later
-
-  // next: make the copy loop using the buffer to copy the file to a file
 
   // 4096 is the bytes for one page file in linux
   // so 4kb blocks will be read at once frm the file
@@ -96,7 +97,7 @@ int main(int argc, char *argv[])
 
   char buffer[4096];
   // ssize_t is Signed Size Type so it allows both pos and neg numbers
-  // ned -1 for eof error
+  // returns -1 for eof error
   // why not use int then?
   // cuz INT_MAX is 32 bit and ssize_t is 64bit
   // and open read write may exceed 32bit
@@ -136,16 +137,15 @@ int main(int argc, char *argv[])
 
   // object to get src file info
   struct stat st;
-  
-  // to get the src file info
-  // it returns all the file info but i need the ode only
-  if (stat(argv[1], &st) < 0)
+
+  // it returns all the file info but i need the mode only
+  if (stat(src, &st) < 0)
   {
     perror("stat");
     close(src_fd);
     return 1;
   }
-  
+
   // to apply to same mode as src to dest file
   if (fchmod(dest_fd, st.st_mode & 0777) < 0)
   {
