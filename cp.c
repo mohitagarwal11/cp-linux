@@ -6,6 +6,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+// basic function to print the progress based on the total size and total written size
+void print_progress_bar(size_t count, size_t max)
+{
+  const int bar_width = 50;
+  float progress = (float)count / max;
+  int bar_length = progress * bar_width;
+
+  printf("\rProgress: [");
+  for (int i = 0; i < bar_length; ++i)
+  {
+    printf("#");
+  }
+  for (int i = bar_length; i < bar_width; ++i)
+  {
+    printf(" ");
+  }
+  printf("] %.0f%%", progress * 100);
+  fflush(stdout); // Flush the output buffer immediately
+}
+
 int main(int argc, char *argv[])
 {
   // Allowing user to use flags in command line arguements like:
@@ -37,8 +57,16 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  // to append we can use the O_APPEND flag inplace of the O_TRUNC for dest_fd
+  // this noly compares the strings entered literally and not logically
+  // i will owkr on this later
+  if (strcmp(src, dest) == 0)
+  {
+    printf("Copy interrupted.\n");
+    printf("Same source and destination file.\n");
+    return 1;
+  }
 
+  // to append we can use the O_APPEND flag inplace of the O_TRUNC for dest_fd
   // to store the flags to be used for dest
   int dest_flags = O_WRONLY | O_CREAT;
 
@@ -102,6 +130,23 @@ int main(int argc, char *argv[])
   // cuz INT_MAX is 32 bit and ssize_t is 64bit
   // and open read write may exceed 32bit
 
+  struct stat st;
+  if (fstat(src_fd, &st) < 0)
+  {
+    perror("fstat");
+    close(src_fd);
+    close(dest_fd);
+    return 1;
+  }
+
+  ssize_t total_bytes = st.st_size;
+  if (total_bytes == 0)
+  {
+    printf("Source file is empty.\n");
+    return 1;
+  }
+  ssize_t total_written = 0;
+
   ssize_t bytes_read;
 
   while ((bytes_read = read(src_fd, buffer, sizeof(buffer))) > 0)
@@ -125,6 +170,8 @@ int main(int argc, char *argv[])
 
       // update total written
       total_written_yet += bytes_written;
+      total_written += bytes_written;
+      print_progress_bar(total_written, total_bytes);
     }
   }
   if (bytes_read < 0)
@@ -132,17 +179,6 @@ int main(int argc, char *argv[])
     perror("read");
     close(src_fd);
     close(dest_fd);
-    return 1;
-  }
-
-  // object to get src file info
-  struct stat st;
-
-  // it returns all the file info but i need the mode only
-  if (stat(src, &st) < 0)
-  {
-    perror("stat");
-    close(src_fd);
     return 1;
   }
 
@@ -158,6 +194,6 @@ int main(int argc, char *argv[])
   close(src_fd);
   close(dest_fd);
 
-  printf("File content copied.\n");
+  printf("\nFile content copied.\n");
   return 0;
 }

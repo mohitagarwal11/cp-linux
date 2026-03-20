@@ -1,7 +1,9 @@
 mycp
-
+cp
+a.out
 *.o
-
 .vscode/
-
 Test
+test1
+sample_src.bin
+sample_dst.bin
